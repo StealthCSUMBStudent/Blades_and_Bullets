@@ -24,6 +24,10 @@ public class Player : MonoBehaviour
     private const string IS_KILLED = "isKilled";
     public Animator animator;
 
+    [SerializeField] private AudioClip playerHitClip;
+    [SerializeField] private AudioClip playerDeathClip;
+    private bool hasPlayedDeathSound; // prevents repeated game over sound playback
+
     //Events
 
     //Firing bullets Logic;    
@@ -100,10 +104,14 @@ public class Player : MonoBehaviour
             HandleMovement();
             HandleInteraction();
 
-        } else if (inventory.Lives < 0f) // dead check lives
+        }
+        else if (inventory.Lives <= 0f) // checks if player has no lives left
         {
-            Debug.Log("You Lost");
-            Time.timeScale = 0f;
+            if (!hasPlayedDeathSound) // prevents repeated game-over handling
+            {
+                hasPlayedDeathSound = true; // prevents this from running repeatedly
+                StartCoroutine(GameOverRoutine()); // starts game-over handling
+            }
         }
 
     }
@@ -165,17 +173,28 @@ public class Player : MonoBehaviour
             // Shoot event for Quick Collect
         }
     }
-    public void Death()
+    public void Death() // runs when the player is hit
     {
-        
-        deathTimer = 1f;
-        //transform.position = new Vector3(-3f, -4f, transform.position.z);
-        StartCoroutine(RespawnPoint());
-        bombCooldown = 8f;
-        inventory.SubtractLife();
-        
-        OnPlayerGetsHit?.Invoke(this, new OnPlayerGetsHitArgs());
-        
+        deathTimer = 1f; // starts temporary death/invulnerability timer
+        bombCooldown = 8f; // resets bomb cooldown after hit
+
+        inventory.SubtractLife(); // removes one life first so we can check final life state
+
+        if (inventory.Lives <= 0f) // checks if this hit killed the player permanently
+        {
+            GameplayAudioManager.Instance.MuteAllOtherAudioSources(0f); // mutes all other scene audio
+            GameplayAudioManager.Instance.PlaySFX(playerDeathClip, 2f); // plays final death sound
+
+            hasPlayedDeathSound = true; // prevents duplicate final death handling
+            StartCoroutine(GameOverRoutine()); // delays pause/game-over handling
+
+            return; // prevents normal hit sound and respawn logic
+        }
+
+        GameplayAudioManager.Instance.PlaySFX(playerHitClip, 1.5f); // plays normal hit sound
+
+        OnPlayerGetsHit?.Invoke(this, new OnPlayerGetsHitArgs()); // broadcasts hit event
+        StartCoroutine(RespawnPoint()); // starts normal respawn sequence
     }
 
     IEnumerator RespawnPoint()
@@ -189,6 +208,13 @@ public class Player : MonoBehaviour
     {
         SlashScript.OnSlashingSomething -= OnSlashingSomething;
         GameControllerScript.OnPlayerDeath -= OnPlayerDeath;
+    }
+
+    private IEnumerator GameOverRoutine() // waits briefly before pausing the game
+    {
+        Debug.Log("You Lost"); // logs final death state
+        yield return new WaitForSecondsRealtime(1f); // gives death sound time to play
+        Time.timeScale = 0f; // pauses the game after the sound starts
     }
 
 }
