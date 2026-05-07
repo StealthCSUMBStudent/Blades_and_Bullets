@@ -118,7 +118,7 @@ public class Player : MonoBehaviour
 
     private void HandleInteraction()
     {        
-        if(Keyboard.current.bKey.wasPressedThisFrame || Keyboard.current.slashKey.wasPressedThisFrame)
+        if(Keyboard.current.xKey.wasPressedThisFrame || Keyboard.current.periodKey.wasPressedThisFrame)
         {   
             if (inventory.Bombs > 0 && bombCooldown <= 0)
             {
@@ -212,7 +212,6 @@ public class Player : MonoBehaviour
 
     private IEnumerator GameOverRoutine() // waits briefly before pausing the game
     {
-        Debug.Log("You Lost"); // logs final death state
         yield return new WaitForSecondsRealtime(1f); // gives death sound time to play
         Time.timeScale = 0f; // pauses the game after the sound starts
     }
